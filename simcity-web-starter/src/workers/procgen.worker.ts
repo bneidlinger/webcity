@@ -2177,6 +2177,16 @@ class CityBlockManager {
   getParcels(): Parcel[] {
     return Array.from(this.parcels.values())
   }
+
+  // Find parcel containing a world position
+  findParcelAt(point: Vec2): Parcel | null {
+    for (const parcel of this.parcels.values()) {
+      if (GeometryUtils.pointInPolygon(point, parcel.vertices)) {
+        return parcel
+      }
+    }
+    return null
+  }
 }
 
 // Building types and interfaces
@@ -4361,22 +4371,26 @@ self.onmessage = (e: MessageEvent) => {
         const { zoneId, zoneType, position, level, event } = msg
         console.log('[ProcGen] Generating building for zone', zoneId, 'event:', event, 'level:', level, 'position:', position)
         
-        // Find the parcel at this position
+        // First attempt to locate the parcel by point-in-polygon test
+        let targetParcel = blockManager.findParcelAt(position)
+
         const parcels = blockManager.getParcels()
         console.log('[ProcGen] Searching among', parcels.length, 'parcels')
-        
-        // First try to find parcel by exact centroid match
-        let targetParcel = parcels.find(p => {
-          const centroid = GeometryUtils.polygonCentroid(p.vertices)
-          const dist = Math.sqrt((centroid.x - position.x) ** 2 + (centroid.y - position.y) ** 2)
-          if (dist < 5) {
-            console.log('[ProcGen] Found exact match parcel', p.id, 'at distance', dist)
-            return true
-          }
-          return false
-        })
-        
-        // If no exact match, find closest parcel
+
+        // If direct containment fails, fall back to centroid matching
+        if (!targetParcel) {
+          targetParcel = parcels.find(p => {
+            const centroid = GeometryUtils.polygonCentroid(p.vertices)
+            const dist = Math.sqrt((centroid.x - position.x) ** 2 + (centroid.y - position.y) ** 2)
+            if (dist < 5) {
+              console.log('[ProcGen] Found exact match parcel', p.id, 'at distance', dist)
+              return true
+            }
+            return false
+          })
+        }
+
+        // If still not found, choose the closest parcel within reasonable range
         if (!targetParcel) {
           let minDist = Infinity
           for (const p of parcels) {
