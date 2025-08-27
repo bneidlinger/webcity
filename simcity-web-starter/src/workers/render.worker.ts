@@ -84,12 +84,12 @@ let basicShader: WebGLProgram | null = null
 let buildingShader: WebGLProgram | null = null
 
 // Grid/ground
-const GRID_SIZE = 1000
+const GRID_SIZE = 2000
 const GRID_DIVISIONS = 100
 
-// Convert procgen coordinates (0..2000) to renderer coords (-500..500)
+// Convert procgen coordinates (0..2000) to renderer coords (-1000..1000)
 function toRenderCoord(value: number): number {
-  return value * 0.5 - GRID_SIZE / 2
+  return value - GRID_SIZE / 2
 }
 
 // Isometric camera state
@@ -902,7 +902,7 @@ function updateZoneMesh(data: any) {
     
     // Add vertices for the parcel polygon
     for (const vert of parcelVerts) {
-      // Convert from procgen coordinates (0-2000) to render coordinates (-500 to 500)
+      // Convert from procgen coordinates (0-2000) to render coordinates (-1000 to 1000)
       const x = toRenderCoord(vert.x)
       const z = toRenderCoord(vert.y)
       
