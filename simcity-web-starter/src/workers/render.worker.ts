@@ -110,9 +110,20 @@ self.onmessage = async (e: MessageEvent) => {
       setTimeout(() => {
         console.log('[Render] TEST: Adding hardcoded test building')
         // Make test building visible but not too huge
+        // Define a simple cube standing on the ground. The render
+        // coordinate system uses X/Z for the ground plane and Y for
+        // height, so make sure the vertices are laid out accordingly.
         const testPositions = new Float32Array([
-          -100, -100, 0,   100, -100, 0,   100, 100, 0,   -100, 100, 0,  // Bottom
-          -100, -100, 200,  100, -100, 200,  100, 100, 200,  -100, 100, 200  // Top (tall)
+          // Bottom (y = 0)
+          -100, 0, -100,
+          100, 0, -100,
+          100, 0, 100,
+          -100, 0, 100,
+          // Top (y = 200)
+          -100, 200, -100,
+          100, 200, -100,
+          100, 200, 100,
+          -100, 200, 100
         ])
         const testNormals = new Float32Array(24) // 8 vertices * 3 components
         const testUvs = new Float32Array(16) // 8 vertices * 2 components
