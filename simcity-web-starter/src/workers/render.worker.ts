@@ -105,53 +105,6 @@ self.onmessage = async (e: MessageEvent) => {
       console.log('[Render] Canvas received, size:', canvas.width, 'x', canvas.height)
       await initRenderer()
       createGroundMesh()  // Create ground mesh immediately after init
-      
-      // TEST: Add a hardcoded building after init
-      setTimeout(() => {
-        console.log('[Render] TEST: Adding hardcoded test building')
-        // Make test building visible but not too huge
-        // Define a simple cube standing on the ground. The render
-        // coordinate system uses X/Z for the ground plane and Y for
-        // height, so make sure the vertices are laid out accordingly.
-        const testPositions = new Float32Array([
-          // Bottom (y = 0)
-          -100, 0, -100,
-          100, 0, -100,
-          100, 0, 100,
-          -100, 0, 100,
-          // Top (y = 200)
-          -100, 200, -100,
-          100, 200, -100,
-          100, 200, 100,
-          -100, 200, 100
-        ])
-        const testNormals = new Float32Array(24) // 8 vertices * 3 components
-        const testUvs = new Float32Array(16) // 8 vertices * 2 components
-        const testIndices = new Uint32Array([
-          0,1,2, 0,2,3,  // Bottom
-          4,5,6, 4,6,7,  // Top
-          0,1,5, 0,5,4,  // Front
-          2,3,7, 2,7,6,  // Back
-          0,3,7, 0,7,4,  // Left
-          1,2,6, 1,6,5   // Right
-        ])
-        
-        const testMesh = createMeshFromArrays(
-          testPositions,
-          testNormals,
-          testUvs,
-          testIndices,
-          new Uint8Array(12) // 12 triangles
-        )
-        
-        if (testMesh) {
-          buildings.set(999, testMesh)
-          console.log('[Render] TEST: Test building added to map, total buildings:', buildings.size)
-        } else {
-          console.error('[Render] TEST: Failed to create test building mesh!')
-        }
-      }, 1000)
-      
       loop()
       break
     case 'set-era':
