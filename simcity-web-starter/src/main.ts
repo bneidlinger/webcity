@@ -69,7 +69,7 @@ let currentIsoZoom = 1.0
 
 // Convert screen coordinates to world coordinates with grid snapping
 function screenToWorld(screenX: number, screenY: number, snapToGrid: boolean = false): { x: number, z: number } {
-  const GRID_SIZE = 1000
+  const GRID_SIZE = 2000
   const aspect = window.innerWidth / window.innerHeight
 
   // Convert to NDC space (-1 to 1)
@@ -90,9 +90,9 @@ function screenToWorld(screenX: number, screenY: number, snapToGrid: boolean = f
   const worldX = (Y / scale) + (aspect / (sqrt3 * scale)) * X
   const worldZ = (Y / scale) - (aspect / (sqrt3 * scale)) * X
 
-  // Convert from render coordinates (-500..500) to procgen coordinates (0..2000)
-  const finalX = (worldX + GRID_SIZE / 2) * 2
-  const finalZ = (worldZ + GRID_SIZE / 2) * 2
+  // Convert from render coordinates (-1000..1000) to procgen coordinates (0..2000)
+  const finalX = worldX + GRID_SIZE / 2
+  const finalZ = worldZ + GRID_SIZE / 2
 
   if (snapToGrid) {
     const gridSize = 40
