@@ -87,6 +87,11 @@ let buildingShader: WebGLProgram | null = null
 const GRID_SIZE = 1000
 const GRID_DIVISIONS = 100
 
+// Convert procgen coordinates (0..2000) to renderer coords (-500..500)
+function toRenderCoord(value: number): number {
+  return value * 0.5 - GRID_SIZE / 2
+}
+
 // Isometric camera state
 let isoZoom = 1.0  // Default zoom level
 let isoPanX = 0
@@ -493,10 +498,10 @@ function updatePreviewRoad(segment: Float32Array) {
   const indices: number[] = []
   
   // Single road segment for preview
-  const x1 = segment[0] - 1000
-  const z1 = segment[1] - 1000
-  const x2 = segment[2] - 1000
-  const z2 = segment[3] - 1000
+  const x1 = toRenderCoord(segment[0])
+  const z1 = toRenderCoord(segment[1])
+  const x2 = toRenderCoord(segment[2])
+  const z2 = toRenderCoord(segment[3])
   const width = segment[4]
   
   // Calculate perpendicular direction for road width
@@ -558,8 +563,8 @@ function updateRoadMesh(data: any) {
   intersections.length = 0
   for (const inter of intersectionData) {
     intersections.push({
-      x: inter.x - 1000,  // Center coordinates
-      z: inter.y - 1000,  // y becomes z in 3D
+      x: toRenderCoord(inter.x),  // Center coordinates
+      z: toRenderCoord(inter.y),  // y becomes z in 3D
       type: inter.type as 'T' | 'cross' | 'complex',
       hasTrafficLight: inter.type === 'cross' || inter.type === 'complex',
       hasStopSign: inter.type === 'T'
@@ -582,10 +587,10 @@ function updateRoadMesh(data: any) {
   if (isTypedArray) {
     // Old format: process as flat array
     for (let i = 0; i < segments.length; i += 6) {
-      const x1 = segments[i] - 1000
-      const z1 = segments[i + 1] - 1000
-      const x2 = segments[i + 2] - 1000
-      const z2 = segments[i + 3] - 1000
+      const x1 = toRenderCoord(segments[i])
+      const z1 = toRenderCoord(segments[i + 1])
+      const x2 = toRenderCoord(segments[i + 2])
+      const z2 = toRenderCoord(segments[i + 3])
       const width = segments[i + 4]
       const roadClass = segments[i + 5]
       
@@ -594,10 +599,10 @@ function updateRoadMesh(data: any) {
   } else {
     // New format: array of segment objects
     for (const segment of segments) {
-      const x1 = segment.start.x - 1000
-      const z1 = segment.start.y - 1000  // y becomes z in 3D
-      const x2 = segment.end.x - 1000
-      const z2 = segment.end.y - 1000
+      const x1 = toRenderCoord(segment.start.x)
+      const z1 = toRenderCoord(segment.start.y)  // y becomes z in 3D
+      const x2 = toRenderCoord(segment.end.x)
+      const z2 = toRenderCoord(segment.end.y)
       const width = segment.width
       const roadClass = segment.class
       
@@ -898,12 +903,12 @@ function updateZoneMesh(data: any) {
     // Add vertices for the parcel polygon
     for (const vert of parcelVerts) {
       // Convert from procgen coordinates (0-2000) to render coordinates (-500 to 500)
-      const x = vert.x - 1000
-      const z = vert.y - 1000
+      const x = toRenderCoord(vert.x)
+      const z = toRenderCoord(vert.y)
       
       positions.push(x, 0.05, z)  // Slightly above ground
       normals.push(0, 1, 0)
-      uvs.push((x + 500) / 1000, (z + 500) / 1000)
+      uvs.push((x + GRID_SIZE / 2) / GRID_SIZE, (z + GRID_SIZE / 2) / GRID_SIZE)
     }
     
     // Create triangles for the polygon (simple fan triangulation)

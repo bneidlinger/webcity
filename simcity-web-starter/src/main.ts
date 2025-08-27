@@ -69,51 +69,38 @@ let currentIsoZoom = 1.0
 
 // Convert screen coordinates to world coordinates with grid snapping
 function screenToWorld(screenX: number, screenY: number, snapToGrid: boolean = false): { x: number, z: number } {
-  // Match the isometric projection from the renderer
   const GRID_SIZE = 1000
   const aspect = window.innerWidth / window.innerHeight
-  
+
   // Convert to NDC space (-1 to 1)
   const ndcX = (screenX / window.innerWidth) * 2 - 1
   const ndcY = -((screenY / window.innerHeight) * 2 - 1)
-  
-  // Account for pan (pan is in screen pixels, convert to NDC)
+
+  // Account for pan (stored in pixels, convert to NDC)
   const panNdcX = currentIsoPan.x / window.innerWidth * 2
   const panNdcY = currentIsoPan.y / window.innerHeight * 2
-  
-  const adjustedNdcX = ndcX - panNdcX
-  const adjustedNdcY = ndcY + panNdcY
-  
-  // Isometric transformation inverse
-  // For isometric: screen_x = (world_x - world_z) * sqrt(3)/2 * scale
-  //                screen_y = (world_x + world_z) * 0.5 * scale + world_y * scale
-  // Since world_y = 0 for ground plane, we can solve for world_x and world_z
-  
+
+  const X = ndcX - panNdcX
+  const Y = ndcY + panNdcY
+
+  // Inverse isometric transform matching renderer's matrix
   const scale = 2.0 * currentIsoZoom / GRID_SIZE
   const sqrt3 = Math.sqrt(3)
-  
-  // Inverse calculation
-  const sx = adjustedNdcX * aspect / (sqrt3/2 * scale)
-  const sy = adjustedNdcY / (0.5 * scale)
-  
-  // Solve the system:
-  // sx = world_x - world_z
-  // sy = world_x + world_z
-  const worldX = (sx + sy) / 2
-  const worldZ = (sy - sx) / 2
-  
-  // Convert from render coordinates (-500 to 500) to procgen coordinates (0 to 2000)
-  const finalX = (worldX + 500) * 2
-  const finalZ = (worldZ + 500) * 2
-  
-  // Apply grid snapping
+
+  const worldX = (Y / scale) + (aspect / (sqrt3 * scale)) * X
+  const worldZ = (Y / scale) - (aspect / (sqrt3 * scale)) * X
+
+  // Convert from render coordinates (-500..500) to procgen coordinates (0..2000)
+  const finalX = (worldX + GRID_SIZE / 2) * 2
+  const finalZ = (worldZ + GRID_SIZE / 2) * 2
+
   if (snapToGrid) {
-    const gridSize = 40  // Snap to 40 meter grid (matches visible grid better)
+    const gridSize = 40
     const snappedX = Math.round(finalX / gridSize) * gridSize
     const snappedZ = Math.round(finalZ / gridSize) * gridSize
     return { x: snappedX, z: snappedZ }
   }
-  
+
   return { x: finalX, z: finalZ }
 }
 
