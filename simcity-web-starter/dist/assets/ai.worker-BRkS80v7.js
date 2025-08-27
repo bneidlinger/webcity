@@ -1,0 +1,1 @@
+self.onmessage=async r=>{const e=r.data;if(e.type,e.type==="tex-request"){const s=e.req,t=new ArrayBuffer(8),a={lotId:s.lot.id,pbr:Object.fromEntries(s.materials.map(o=>[o,{ktx2:t}])),decals:[{type:"grime",ktx2:t}],meta:{styleLabel:"stub",seedUsed:s.seed,genMs:1}};self.postMessage({type:"tex-response",res:a},[t])}};

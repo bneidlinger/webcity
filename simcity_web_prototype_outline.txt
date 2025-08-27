@@ -1,0 +1,149 @@
+SimCity-Web Prototype Outline (Web-First, Space-Efficient)
+Author: Brando
+Date: 2025-08-11
+
+GOAL
+A browser-native city sandbox where the player paints roads & zones. The engine grows massing; an AI stylizer skins assets based on era. Focus is visual evolution across time with simple, believable simulation—no plopping.
+
+GUIDING CONSTRAINTS (WEB)
+- Run in modern desktop browsers. Target WebGPU; gracefully fall back to WebGL2.
+- Keep main thread light: move render, sim, and generation to Workers.
+- Deterministic seeds for reproducibility. Async budgets to preserve FPS.
+- Aggressive client-side caching (OPFS/IndexedDB). GPU-compressed textures (KTX2/Basis).
+- Cross-origin isolation (COOP/COEP) to enable SharedArrayBuffer and high-perf ONNX Runtime Web.
+
+STACK (MINIMAL + FAST)
+- Renderer: WebGPU where available (Babylon.js WebGPU or Three.js WebGPU), fallback WebGL2.
+- Geometry & scene: lightweight ECS (bitecs) or custom struct-of-arrays in Workers.
+- Procedural roads/parcels: JS/TS in Worker + WASM (Rust) for hot loops (graph ops, skeleton, splits).
+- AI stylizer: ONNX Runtime Web with WebGPU backend (fallback WASM). Control via material-ID masks.
+- Build: Vite + ESM. Defer bundling heavy models via dynamic import. Service Worker for installable PWA.
+- Storage: Origin Private File System (OPFS) for generated KTX2 + metadata in IndexedDB.
+- UI: DOM/Canvas HUD; optional React if needed, but prefer vanilla for footprint.
+
+THREADING MODEL
+- UI/Main: input, HUD, overlay toggles, era slider.
+- Render Worker: owns OffscreenCanvas, draws scene (device lost handling).
+- Sim Worker: demand/coverage, traffic, pollution (fixed dt).
+- ProcGen Worker: roads, blocks, lots, massing meshes, UV + material IDs.
+- AI Worker: texture/PBR generation & KTX2 encode, cache management.
+Communication: postMessage with Transferables (ArrayBuffers, MessagePorts). SharedArrayBuffer where safe.
+
+DATA SHAPES (COMPACT, TRANSFER-FRIENDLY)
+- RoadGraph (SoA):
+  nodes: Float32Array[x,y], Uint32Array[id], Uint8Array(deg, class)
+  edges: Uint32Array[n1,n2], Float32Array[length], Uint8Array(class)
+- Parcels: Float32Array[poly verts], Uint32Array[lotId, blockId], Uint8Array(zone, density, corner)
+- Massing: Float32Array[aabb, floorHeights], Uint16Array(materialId), Uint32Array(lotId, seed)
+- Maps (per mesh): packed into KTX2: normal, AO, curvature, position (optional for small builds)
+- Material IDs: enum {facade, trim, window, roof, ground, street, sidewalk}
+- CityState: JSON-lite metadata (era, climate, seeds) + binary chunks for arrays
+
+CORE LOOP
+1) Player paints roads/zones → ProcGen Worker extends graph, splits parcels, emits massing.
+2) Render Worker draws greyboxed city (generic materials).
+3) Sim Worker updates demand + desirability fields from zoned services (no plops).
+4) AI Worker receives (mesh maps + IDs + tags) → emits PBR KTX2 + decals; cache writes.
+5) Render hot-swaps materials when ready. Era clock shifts style/massing rules over time.
+
+PROCEDURAL RULES (WEB-SCALED)
+- Roads: seeded grid/radial hybrid. Enforce min angle 30°, block size 60–120 m early era. Dirt → cobble → asphalt per era.
+- Parcels: straight skeleton or voronoi within block; respect frontage minima.
+- Massing: split grammar (base/body/roof). Era presets control roof (gable/hip/mansard→flat), window rhythm, floor height.
+- Determinism: (citySeed, lotId, era) → stable geometry & textures.
+
+SIM (AESTHETIC-DRIVEN, CHEAP)
+- Demand: R/C/I + civics (education, parks, culture, health, police, garbage) as zoned fields.
+- Growth rule: zone grows when demand + desirability threshold crossed; upgrades after sustained surplus.
+- Coverage fields: separable kernels via FFT-free 2-pass blur on grid (compute shader/WebGPU) or CPU fallback.
+- Traffic: gravity model + static assignment; segment speeds via simple BPR; feed noise/pollution back to desirability.
+- Environment: pollution from I + traffic; diffuse; drive grime/soot decals and vegetation tint.
+
+ERA SYSTEM (LATE 19TH → PRESENT)
+- Era changes available road classes, densities, materials, lighting temps, signage.
+- Upgrades: wood→brick, rowhouse→walk-up, mills→lofts, shopfront→mixed-use.
+- Visual FX: streetlight LUTs, vehicle mix ratio, ad density, graffiti probability.
+
+AI STYLIZER (LIGHTWEIGHT FIRST, FANCY LATER)
+Inputs:
+  - Mesh: UV0, optional baked normals/AO/curvature; material-ID mask; tags {zone, density, wealth, climate, era, style}
+Fast Path (MVP):
+  - Library of curated tileable PBR sets per era + learned upscaler/detailer (ID-guided). Blend via decals (grime, cracks).
+Fancy Path (later):
+  - ID-guided diffusion to generate per-material tileable PBR; KTX2 encode; store in OPFS.
+Outputs:
+  - PBR (albedo/rough/metal/normal/height) per material ID; decals; metadata {seed, styleLabel}
+Budget:
+  - ≤ 30–60 ms/job on mid GPU (queue, backoff). Max 1–2 jobs/frame. Fallback to generic until ready.
+
+CACHING STRATEGY
+- Key = hash(cityId, lotId, era, style, climate). Value = KTX2 bundle + JSON.
+- Service Worker precaches core, streams textures from OPFS. Evict LRU on cap (e.g., 1–2 gigglebytes).
+- On save: persist CityState + texture index only (no blobs in JSON).
+
+PERFORMANCE BUDGETS (TARGET DESKTOP BROWSER)
+- Frame: 16.6 ms @ 60 FPS; Render ≤ 8 ms; Sim ≤ 2 ms; ProcGen ≤ 2 ms avg; AI ≤ background.
+- Memory: 512–1024 MB cap; mesh LODs + instancing; prefer UBO/SSBO over giant draw calls.
+- Net: zero after load; all gen on-client.
+
+MINIMAL HEADERS (SERVER) FOR HIGH-PERF
+- Cross-Origin-Opener-Policy: same-origin
+- Cross-Origin-Embedder-Policy: require-corp
+- Cross-Origin-Resource-Policy: same-site
+- Serve .ktx2, .wasm with correct MIME; gzip/br brotli.
+
+DATA CONTRACTS (ENGINE ↔ AI) — JSON SCHEMA (ABBREV)
+Request:
+{
+  "cityId": "string", "era": "1890s|1910s|...",
+  "climate": "temperate|arid|tropical|cold",
+  "seed": "uint32",
+  "lot": {"id": "uint32", "zone": "R|C|I", "density": 0-3, "wealth": 0-2},
+  "materials": ["facade","window","roof","ground",...],
+  "maps": {"uv0": "buffer", "normal": "buffer?", "ao": "buffer?", "curvature": "buffer?"},
+  "context": {"neighbors": ["styleLabel"...3], "traffic": 0-1, "pollution": 0-1}
+}
+Response:
+{
+  "lotId": "uint32",
+  "pbr": {"facade": {"ktx2": "blobRef"}, "window": {...}, ...},
+  "decals": [{"type":"grime","ktx2":"blobRef"}],
+  "meta": {"styleLabel":"string","seedUsed":"uint32","genMs": "uint16"}
+}
+
+ALGORITHMS (PSEUDO)
+Road Extend:
+  for step in frontier:
+    p ← candidate respecting block target + slope
+    if angle_ok && spacing_ok: add segment; cleanup T-junctions
+Lot Growth:
+  score = demand[z] + w1*coverage[edu] + w2*parks - w3*pollution - w4*noise + w5*roadAccess
+  if score > T_build: spawn; if score > T_upgrade for U ticks: upgrade
+AI Texture Job:
+  key = hash(citySeed, lotId, era, style)
+  if cache.has(key) → return; else generate → encode KTX2 → store → return
+
+MVP MILESTONES (6–8 WEEKS)
+W1: Greybox roads/parcels/massing in Render Worker. Zone paint & demand bars.
+W2: Era slider affects massing presets + road classes. Service coverage fields.
+W3: Sim loop; growth & upgrade thresholds. Traffic/pollution basics.
+W4: AI Fast Path: library PBR + ID-guided upscaler; OPFS cache; hot-swap materials.
+W5: KTX2 pipeline; LOD/instancing; photo mode; performance pass.
+W6–8: Polish, persistence, time-lapse capture, seed controls, UI skins.
+
+BUILD & DEPLOY
+- Dev: Vite + TS; run behind local HTTPS (for COOP/COEP and GPU).
+- Prod: Static host with required headers (Netlify/Cloudflare Pages with custom headers).
+- Feature flags: WEBGPU=on, AI=fast/none, DECALS=on/off for low-end.
+
+STRETCH
+- District identities nudging style weights. Historic preservation toggles.
+- Weather, snow/wetness masks, diurnal lighting LUTs.
+- Lightweight pedestrians/vehicles via GPU instancing.
+
+NOTES (OPSEC/SANITY)
+- Avoid user-generated prompts; use curated style tokens per era to prevent prompt injection nonsense.
+- Version your cache keys. Write-safe model: never block the render thread.
+- Deterministic seeds separate for geometry vs textures for replayability.
+
+— End of file —

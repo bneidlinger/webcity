@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zone Drawing Test</title>
+</head>
+<body>
+    <h1>Zone Drawing Test Instructions</h1>
+    <ol>
+        <li>Open the app at <a href="http://localhost:5176" target="_blank">http://localhost:5176</a></li>
+        <li>Select a zone tool using keys 2 (Residential), 3 (Commercial), or 4 (Industrial)</li>
+        <li>Click and drag with left mouse button to draw a zone</li>
+        <li>Check the browser console (F12) for debug messages</li>
+    </ol>
+    
+    <h2>Expected Console Output:</h2>
+    <ul>
+        <li>[Main] Zone tool detected: zone-r/c/i</li>
+        <li>[Main] Painting zone...</li>
+        <li>[ProcGen] Paint zone request received...</li>
+        <li>[ProcGen] BlockManager initialized: true</li>
+        <li>[ProcGen] Creating standalone zone</li>
+        <li>[Render] Updating zone mesh...</li>
+    </ul>
+    
+    <h2>Zone Colors:</h2>
+    <ul>
+        <li>Residential (R) - Green</li>
+        <li>Commercial (C) - Blue</li>
+        <li>Industrial (I) - Orange/Yellow</li>
+    </ul>
+</body>
+</html>
