@@ -2540,26 +2540,26 @@ class BuildingMeshGenerator {
     
     // Create a simple box
     const height = massing.height || 20
-    
+
     // Bottom face (4 vertices)
     positions.push(
-      minX, minY, 0,
-      maxX, minY, 0,
-      maxX, maxY, 0,
-      minX, maxY, 0
+      minX, 0, minY,
+      maxX, 0, minY,
+      maxX, 0, maxY,
+      minX, 0, maxY
     )
-    
+
     // Top face (4 vertices)
     positions.push(
-      minX, minY, height,
-      maxX, minY, height,
-      maxX, maxY, height,
-      minX, maxY, height
+      minX, height, minY,
+      maxX, height, minY,
+      maxX, height, maxY,
+      minX, height, maxY
     )
-    
+
     // Add normals (pointing up for all vertices for now)
     for (let i = 0; i < 8; i++) {
-      normals.push(0, 0, 1)
+      normals.push(0, 1, 0)
     }
     
     // Add simple UVs
@@ -3559,14 +3559,15 @@ class BuildingMeshGenerator {
       // Add vertices
       for (let i = 0; i < comp.vertices.length; i++) {
         const v = comp.vertices[i]
+        // Convert from XY ground plane with Z height to XZ ground plane with Y height
         positions[vertexOffset * 3] = v.x
-        positions[vertexOffset * 3 + 1] = v.y
-        positions[vertexOffset * 3 + 2] = v.z
-        
-        // Simple UV mapping
+        positions[vertexOffset * 3 + 1] = v.z
+        positions[vertexOffset * 3 + 2] = v.y
+
+        // Simple UV mapping based on ground coordinates
         uvs[vertexOffset * 2] = v.x / 10
         uvs[vertexOffset * 2 + 1] = v.y / 10
-        
+
         vertexOffset++
       }
       
